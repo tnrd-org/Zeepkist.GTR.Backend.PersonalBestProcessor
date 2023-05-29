@@ -52,20 +52,14 @@ internal class QueueProcessor : IHostedService
     {
         while (!ct.IsCancellationRequested)
         {
-            logger.LogWarning("Looking for items");
-
             List<KeyValuePair<int, List<ProcessPersonalBestRequest>>[]> chunks = itemQueue.GetItemsFromQueue()
                 .Chunk(10).ToList();
-
-            logger.LogWarning("Got {Count} items", chunks.Count);
 
             for (int i = 0; i < chunks.Count; i++)
             {
                 KeyValuePair<int, List<ProcessPersonalBestRequest>>[] chunk = chunks[i];
                 List<IServiceScope> scopes = new();
                 List<Task> tasks = new();
-
-                logger.LogWarning("Processing chunk {Index}", i);
 
                 foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>> kvp in chunk)
                 {
@@ -76,11 +70,8 @@ internal class QueueProcessor : IHostedService
                         CancellationToken.None); // TODO: Check if we should give a different CT here
                     tasks.Add(task);
                 }
-
-                logger.LogWarning("Waiting for all tasks {Index}", i);
                 await Task.WhenAll(tasks);
 
-                logger.LogWarning("Cleaning up scopes {Index}", i);
                 foreach (IServiceScope scope in scopes)
                 {
                     scope.Dispose();

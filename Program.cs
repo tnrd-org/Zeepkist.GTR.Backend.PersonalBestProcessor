@@ -1,7 +1,8 @@
 using Serilog;
-using TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor;
 using TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor.Rabbit;
 using TNRD.Zeepkist.GTR.Database;
+
+namespace TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor;
 
 internal class Program
 {
@@ -11,7 +12,7 @@ internal class Program
             .UseSerilog((context, configuration) =>
             {
                 configuration
-                    .MinimumLevel.Warning()
+                    .MinimumLevel.Information()
                     .WriteTo.Console();
             })
             .ConfigureServices((context, services) =>
