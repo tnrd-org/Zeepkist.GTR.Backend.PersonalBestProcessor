@@ -52,23 +52,23 @@ internal class QueueProcessor : IHostedService
     {
         while (!ct.IsCancellationRequested)
         {
-            logger.LogInformation("Looking for items");
+            logger.LogWarning("Looking for items");
 
             List<KeyValuePair<int, List<ProcessPersonalBestRequest>>[]> chunks = itemQueue.GetItemsFromQueue()
                 .Chunk(10).ToList();
 
-            logger.LogInformation("Got {Count} items", chunks.Count);
-            
-            foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>>[] chunk in chunks)
+            logger.LogWarning("Got {Count} items", chunks.Count);
+
+            for (int i = 0; i < chunks.Count; i++)
             {
+                KeyValuePair<int, List<ProcessPersonalBestRequest>>[] chunk = chunks[i];
                 List<IServiceScope> scopes = new();
                 List<Task> tasks = new();
 
-                logger.LogInformation("Processing chunk");
-                
+                logger.LogWarning("Processing chunk {Index}", i);
+
                 foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>> kvp in chunk)
                 {
-                    
                     IServiceScope scope = serviceProvider.CreateScope();
                     scopes.Add(scope);
                     Task task = ProcessQueue(scope.ServiceProvider,
@@ -77,10 +77,10 @@ internal class QueueProcessor : IHostedService
                     tasks.Add(task);
                 }
 
-                logger.LogInformation("Waiting for all tasks");
+                logger.LogWarning("Waiting for all tasks {Index}", i);
                 await Task.WhenAll(tasks);
 
-                logger.LogInformation("Cleaning up scopes");
+                logger.LogWarning("Cleaning up scopes {Index}", i);
                 foreach (IServiceScope scope in scopes)
                 {
                     scope.Dispose();
