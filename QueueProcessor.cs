@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using TNRD.Zeepkist.GTR.Database;
 using TNRD.Zeepkist.GTR.Database.Models;
 using TNRD.Zeepkist.GTR.DTOs.Rabbit;
@@ -100,36 +101,41 @@ internal class QueueProcessor : IHostedService
 
     private async Task ProcessRequest(GTRContext context, ProcessPersonalBestRequest request, CancellationToken ct)
     {
-        try
+        using (IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(ct))
         {
-            List<Record> personalBests = await context.Records
-                .Where(x => x.Level == request.Level && x.User == request.User && x.IsBest)
-                .ToListAsync(ct);
-
-            foreach (Record personalBest in personalBests)
+            try
             {
-                personalBest.IsBest = false;
+                List<Record> personalBests = await context.Records
+                    .Where(x => x.Level == request.Level && x.User == request.User && x.IsBest)
+                    .ToListAsync(ct);
+
+                foreach (Record personalBest in personalBests)
+                {
+                    personalBest.IsBest = false;
+                }
+
+                Record? record = await context.Records
+                    .Where(x => x.Level == request.Level && x.User == request.User)
+                    .OrderBy(x => x.Time)
+                    .FirstOrDefaultAsync(ct);
+
+                if (record == null)
+                {
+                    logger.LogError("Unable to mark record as best because it does not exist");
+                }
+                else
+                {
+                    record.IsBest = true;
+                }
+
+                await context.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
             }
-
-            Record? record = await context.Records
-                .Where(x => x.Level == request.Level && x.User == request.User)
-                .OrderBy(x => x.Time)
-                .FirstOrDefaultAsync(ct);
-
-            if (record == null)
+            catch (Exception e)
             {
-                logger.LogError("Unable to mark record as best because it does not exist");
+                logger.LogError(e, "Unable to process personal best");
+                await transaction.RollbackAsync(ct);
             }
-            else
-            {
-                record.IsBest = true;
-            }
-
-            await context.SaveChangesAsync(ct);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Unable to process personal best");
         }
     }
 }
