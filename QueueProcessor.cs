@@ -52,9 +52,11 @@ internal class QueueProcessor : IHostedService
     {
         while (!ct.IsCancellationRequested)
         {
-            Dictionary<int, List<ProcessPersonalBestRequest>> items = itemQueue.GetItemsFromQueue();
+            logger.LogInformation("Looking for items");
 
-            List<KeyValuePair<int, List<ProcessPersonalBestRequest>>[]> chunks = items.Chunk(10).ToList();
+            List<KeyValuePair<int, List<ProcessPersonalBestRequest>>[]> chunks = itemQueue.GetItemsFromQueue()
+                .Chunk(10).ToList();
+
             foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>>[] chunk in chunks)
             {
                 List<IServiceScope> scopes = new();
@@ -77,6 +79,8 @@ internal class QueueProcessor : IHostedService
                     scope.Dispose();
                 }
             }
+
+            await Task.Delay(1000, ct);
         }
     }
 
