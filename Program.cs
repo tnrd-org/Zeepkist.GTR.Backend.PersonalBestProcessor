@@ -7,7 +7,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     .UseSerilog((context, configuration) =>
     {
         configuration
-            .MinimumLevel.Debug()
+            .MinimumLevel.Verbose()
             .WriteTo.Console();
     })
     .ConfigureServices((context, services) =>
