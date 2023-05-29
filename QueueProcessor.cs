@@ -87,7 +87,8 @@ internal class QueueProcessor : IHostedService
                 }
             }
 
-            await Task.Delay(1000, ct);
+            if (!itemQueue.HasItems())
+                await Task.Delay(1000, ct);
         }
     }
 
