@@ -17,22 +17,33 @@ internal class ItemQueue
     {
         resetEvent.WaitOne();
 
-        if (!userToItems.ContainsKey(item.User))
-            userToItems.Add(item.User, new List<ProcessPersonalBestRequest>());
+        try
+        {
+            if (!userToItems.ContainsKey(item.User))
+                userToItems.Add(item.User, new List<ProcessPersonalBestRequest>());
 
-        userToItems[item.Level].Add(item);
-
-        resetEvent.Set();
+            userToItems[item.User].Add(item);
+        }
+        finally
+        {
+            resetEvent.Set();
+        }
     }
 
     public Dictionary<int, List<ProcessPersonalBestRequest>> GetItemsFromQueue()
     {
         resetEvent.WaitOne();
 
-        Dictionary<int, List<ProcessPersonalBestRequest>> copy = userToItems.ToDictionary(x => x.Key, y => y.Value);
-        userToItems.Clear();
+        try
+        {
+            Dictionary<int, List<ProcessPersonalBestRequest>> copy = userToItems.ToDictionary(x => x.Key, y => y.Value);
+            userToItems.Clear();
+            return copy;
+        }
+        finally
 
-        resetEvent.Set();
-        return copy;
+        {
+            resetEvent.Set();
+        }
     }
 }
