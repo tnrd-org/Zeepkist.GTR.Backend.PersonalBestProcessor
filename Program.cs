@@ -11,7 +11,7 @@ internal class Program
             .UseSerilog((context, configuration) =>
             {
                 configuration
-                    .MinimumLevel.Verbose()
+                    .MinimumLevel.Information()
                     .WriteTo.Console();
             })
             .ConfigureServices((context, services) =>

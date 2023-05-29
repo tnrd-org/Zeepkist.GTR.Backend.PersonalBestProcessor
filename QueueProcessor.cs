@@ -57,18 +57,17 @@ internal class QueueProcessor : IHostedService
             List<KeyValuePair<int, List<ProcessPersonalBestRequest>>[]> chunks = itemQueue.GetItemsFromQueue()
                 .Chunk(10).ToList();
 
-            logger.LogTrace("Got {Count} items", chunks.Count);
+            logger.LogInformation("Got {Count} items", chunks.Count);
             
             foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>>[] chunk in chunks)
             {
                 List<IServiceScope> scopes = new();
                 List<Task> tasks = new();
 
-                logger.LogTrace("Processing chunk");
+                logger.LogInformation("Processing chunk");
                 
                 foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>> kvp in chunk)
                 {
-                    logger.LogTrace("Processing user {User}", kvp.Key);
                     
                     IServiceScope scope = serviceProvider.CreateScope();
                     scopes.Add(scope);
@@ -78,10 +77,10 @@ internal class QueueProcessor : IHostedService
                     tasks.Add(task);
                 }
 
-                logger.LogTrace("Waiting for all tasks");
+                logger.LogInformation("Waiting for all tasks");
                 await Task.WhenAll(tasks);
 
-                logger.LogTrace("Cleaning up scopes");
+                logger.LogInformation("Cleaning up scopes");
                 foreach (IServiceScope scope in scopes)
                 {
                     scope.Dispose();
@@ -98,23 +97,19 @@ internal class QueueProcessor : IHostedService
         CancellationToken ct
     )
     {
-        logger.LogTrace("Getting context");
         GTRContext context = provider.GetRequiredService<GTRContext>();
 
         foreach (ProcessPersonalBestRequest request in requests)
         {
-            logger.LogTrace("Getting personal bests");
             List<Record> personalBests = await context.Records
                 .Where(x => x.Level == request.Level && x.User == request.User && x.IsBest)
                 .ToListAsync(ct);
 
             foreach (Record personalBest in personalBests)
             {
-                logger.LogTrace("Setting personal best to not best");
                 personalBest.IsBest = false;
             }
 
-            logger.LogTrace("Get best record");
             Record? record = await context.Records
                 .Where(x => x.Level == request.Level && x.User == request.User)
                 .OrderBy(x => x.Time)
@@ -126,11 +121,9 @@ internal class QueueProcessor : IHostedService
             }
             else
             {
-                logger.LogTrace("Marking record as best");
                 record.IsBest = true;
             }
 
-            logger.LogTrace("Saving changes");
             await context.SaveChangesAsync(ct);
         }
     }
