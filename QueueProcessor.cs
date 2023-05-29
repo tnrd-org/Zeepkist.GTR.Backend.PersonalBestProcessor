@@ -70,6 +70,7 @@ internal class QueueProcessor : IHostedService
                         CancellationToken.None); // TODO: Check if we should give a different CT here
                     tasks.Add(task);
                 }
+
                 await Task.WhenAll(tasks);
 
                 foreach (IServiceScope scope in scopes)
@@ -92,6 +93,14 @@ internal class QueueProcessor : IHostedService
         GTRContext context = provider.GetRequiredService<GTRContext>();
 
         foreach (ProcessPersonalBestRequest request in requests)
+        {
+            await ProcessRequest(context, request, ct);
+        }
+    }
+
+    private async Task ProcessRequest(GTRContext context, ProcessPersonalBestRequest request, CancellationToken ct)
+    {
+        try
         {
             List<Record> personalBests = await context.Records
                 .Where(x => x.Level == request.Level && x.User == request.User && x.IsBest)
@@ -117,6 +126,10 @@ internal class QueueProcessor : IHostedService
             }
 
             await context.SaveChangesAsync(ct);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Unable to process personal best");
         }
     }
 }
