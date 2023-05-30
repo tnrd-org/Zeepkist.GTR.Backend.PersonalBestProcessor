@@ -52,7 +52,6 @@ internal class RabbitWorker : IHostedService
             consumer: consumer);
 
         publisher.Initialize(channel);
-
         return Task.CompletedTask;
     }
 
