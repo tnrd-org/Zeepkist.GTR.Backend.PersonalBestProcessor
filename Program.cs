@@ -12,7 +12,8 @@ internal class Program
             .UseSerilog((context, configuration) =>
             {
                 configuration
-                    .MinimumLevel.Information()
+                    .MinimumLevel.Debug()
+                    .WriteTo.Seq(context.Configuration["Seq:Url"], apiKey: context.Configuration["Seq:Key"])
                     .WriteTo.Console();
             })
             .ConfigureServices((context, services) =>
@@ -33,12 +34,12 @@ internal class Program
 
         TaskScheduler.UnobservedTaskException += (sender, eventArgs) =>
         {
-            logger.LogError(eventArgs.Exception, "Unobserved task exception");
+            logger.LogCritical(eventArgs.Exception, "Unobserved task exception");
         };
 
         AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
         {
-            logger.LogError(eventArgs.ExceptionObject as Exception, "Unhandled exception");
+            logger.LogCritical(eventArgs.ExceptionObject as Exception, "Unhandled exception");
         };
 
         host.Run();
