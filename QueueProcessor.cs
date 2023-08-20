@@ -1,8 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
-using TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor.Rabbit;
-using TNRD.Zeepkist.GTR.Database;
-using TNRD.Zeepkist.GTR.Database.Models;
+﻿using TNRD.Zeepkist.GTR.Database;
 using TNRD.Zeepkist.GTR.DTOs.Rabbit;
 
 namespace TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor;
@@ -10,25 +6,21 @@ namespace TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor;
 internal class QueueProcessor : IHostedService
 {
     private readonly ItemQueue itemQueue;
-    private readonly IServiceProvider serviceProvider;
-    private readonly IRabbitPublisher publisher;
     private readonly ILogger<QueueProcessor> logger;
-
+    private readonly GTRContext context;
     private readonly CancellationTokenSource cts;
 
     private Task? queueRunnerTask;
 
     public QueueProcessor(
         ItemQueue itemQueue,
-        IServiceProvider serviceProvider,
         ILogger<QueueProcessor> logger,
-        IRabbitPublisher publisher
+        GTRContext context
     )
     {
         this.itemQueue = itemQueue;
-        this.serviceProvider = serviceProvider;
         this.logger = logger;
-        this.publisher = publisher;
+        this.context = context;
 
         cts = new CancellationTokenSource();
     }
@@ -57,107 +49,44 @@ internal class QueueProcessor : IHostedService
     {
         while (!ct.IsCancellationRequested)
         {
-            List<KeyValuePair<int, List<ProcessPersonalBestRequest>>[]> chunks = itemQueue.GetItemsFromQueue()
-                .Chunk(10).ToList();
+            List<KeyValuePair<int, List<ProcessPersonalBestRequest>>> items = itemQueue
+                .GetItemsFromQueue()
+                .ToList();
 
-            for (int i = 0; i < chunks.Count; i++)
+            foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>> item in items)
             {
-                KeyValuePair<int, List<ProcessPersonalBestRequest>>[] chunk = chunks[i];
-                List<IServiceScope> scopes = new();
-                List<Task> tasks = new();
+                int userId = item.Key;
+                List<IGrouping<int, ProcessPersonalBestRequest>> groups = item.Value
+                    .GroupBy(x => x.Level)
+                    .ToList();
 
-                foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>> kvp in chunk)
+                foreach (IGrouping<int, ProcessPersonalBestRequest> group in groups)
                 {
-                    IServiceScope scope = serviceProvider.CreateScope();
-                    scopes.Add(scope);
-                    Task task = ProcessQueue(scope.ServiceProvider,
-                        kvp.Value,
-                        CancellationToken.None); // TODO: Check if we should give a different CT here
-                    tasks.Add(task);
-                }
-
-                await Task.WhenAll(tasks);
-
-                foreach (IServiceScope scope in scopes)
-                {
-                    scope.Dispose();
+                    int levelId = group.Key;
+                    await ProcessRequest(userId, levelId);
                 }
             }
 
             if (!itemQueue.HasItems())
+            {
+                logger.LogInformation("Delaying queue runner for 1 second");
                 await Task.Delay(1000, ct);
+            }
         }
     }
 
-    private async Task ProcessQueue(
-        IServiceProvider provider,
-        List<ProcessPersonalBestRequest> requests,
-        CancellationToken ct
-    )
+    private async Task ProcessRequest(int userId, int levelId)
     {
-        GTRContext context = provider.GetRequiredService<GTRContext>();
-
-        foreach (ProcessPersonalBestRequest request in requests)
+        try
         {
-            await ProcessRequest(context, request, ct);
+            await context.UpdatePersonalBestAsync(userId, levelId);
         }
-    }
-
-    private async Task ProcessRequest(GTRContext context, ProcessPersonalBestRequest request, CancellationToken ct)
-    {
-        using (IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(ct))
+        catch (Exception e)
         {
-            try
-            {
-                List<Record> personalBests = await context.Records
-                    .Where(x => x.Level == request.Level && x.User == request.User && x.IsBest)
-                    .ToListAsync(ct);
-
-                foreach (Record personalBest in personalBests)
-                {
-                    personalBest.IsBest = false;
-                }
-
-                Record? record = await context.Records
-                    .Where(x => x.Level == request.Level && x.User == request.User && x.IsValid)
-                    .OrderBy(x => x.Time)
-                    .FirstOrDefaultAsync(ct);
-
-                if (record == null)
-                {
-                    logger.LogError("Unable to mark record as best because it does not exist");
-                }
-                else
-                {
-                    record.IsBest = true;
-                }
-
-                await context.SaveChangesAsync(ct);
-                await transaction.CommitAsync(ct);
-
-                foreach (Record personalBest in personalBests)
-                {
-                    publisher.Publish("records",
-                        new RecordId
-                        {
-                            Id = personalBest.Id
-                        });
-                }
-
-                if (record != null)
-                {
-                    publisher.Publish("records",
-                        new RecordId
-                        {
-                            Id = record.Id
-                        });
-                }
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Unable to process personal best");
-                await transaction.RollbackAsync(ct);
-            }
+            logger.LogError(e,
+                "Failed to update personal best for user {UserId} and level {LevelId}",
+                userId,
+                levelId);
         }
     }
 }
