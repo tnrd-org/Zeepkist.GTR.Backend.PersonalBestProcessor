@@ -47,6 +47,8 @@ internal class QueueProcessor : IHostedService
 
     private async Task? QueueRunner(CancellationToken ct)
     {
+        Random rnd = new();
+
         while (!ct.IsCancellationRequested)
         {
             List<KeyValuePair<int, List<ProcessPersonalBestRequest>>> items = itemQueue
@@ -66,7 +68,16 @@ internal class QueueProcessor : IHostedService
                 {
                     int levelId = group.Key;
                     logger.LogInformation("Processing user {UserId} and level {LevelId}", userId, levelId);
-                    await ProcessRequest(userId, levelId);
+
+                    for (int i = 0; i < 5; i++)
+                    {
+                        if (await ProcessRequest(userId, levelId))
+                            break;
+
+                        int delay = rnd.Next(50, 150);
+                        logger.LogInformation("Delaying queue runner for {Delay}ms because of a failed attempt", delay);
+                        await Task.Delay(delay, ct);
+                    }
                 }
             }
 
@@ -78,18 +89,17 @@ internal class QueueProcessor : IHostedService
         }
     }
 
-    private async Task ProcessRequest(int userId, int levelId)
+    private async Task<bool> ProcessRequest(int userId, int levelId)
     {
         try
         {
             await context.UpdatePersonalBestAsync(userId, levelId);
+            return true;
         }
         catch (Exception e)
         {
-            logger.LogError(e,
-                "Failed to update personal best for user {UserId} and level {LevelId}",
-                userId,
-                levelId);
+            logger.LogError(e, "Failed to update personal best for user {UserId} and level {LevelId}", userId, levelId);
+            return false;
         }
     }
 }
