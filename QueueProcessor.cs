@@ -53,6 +53,8 @@ internal class QueueProcessor : IHostedService
                 .GetItemsFromQueue()
                 .ToList();
 
+            logger.LogInformation("Processing {Count} items", items.Count);
+
             foreach (KeyValuePair<int, List<ProcessPersonalBestRequest>> item in items)
             {
                 int userId = item.Key;
@@ -63,6 +65,7 @@ internal class QueueProcessor : IHostedService
                 foreach (IGrouping<int, ProcessPersonalBestRequest> group in groups)
                 {
                     int levelId = group.Key;
+                    logger.LogInformation("Processing user {UserId} and level {LevelId}", userId, levelId);
                     await ProcessRequest(userId, levelId);
                 }
             }
