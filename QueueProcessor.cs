@@ -72,7 +72,15 @@ internal class QueueProcessor : IHostedService
                     for (int i = 0; i < 5; i++)
                     {
                         if (await ProcessRequest(userId, levelId))
+                        {
+                            logger.LogInformation(
+                                "Successfully processed user {UserId} and level {LevelId} (iteration {Iteration})",
+                                userId,
+                                levelId,
+                                i);
+
                             break;
+                        }
 
                         int delay = rnd.Next(50, 150);
                         logger.LogInformation("Delaying queue runner for {Delay}ms because of a failed attempt", delay);
