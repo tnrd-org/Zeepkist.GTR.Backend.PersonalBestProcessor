@@ -54,7 +54,7 @@ public class ProcessPersonalBestJob
             context.PersonalBests.Add(new PersonalBest()
             {
                 Level = request.Level,
-                User = request.Level,
+                User = request.User,
                 Record = newPersonalBest.Id,
                 DateCreated = DateTime.UtcNow
             });
