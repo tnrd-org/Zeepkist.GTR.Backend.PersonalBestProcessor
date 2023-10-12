@@ -17,7 +17,7 @@ internal class ItemQueue
         }
         finally
         {
-            resetEvent.Reset();
+            resetEvent.Set();
         }
     }
 
