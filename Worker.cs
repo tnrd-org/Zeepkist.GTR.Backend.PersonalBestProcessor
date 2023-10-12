@@ -25,10 +25,19 @@ internal class Worker : BackgroundService
             List<ProcessPersonalBestRequest> items = itemQueue.GetItemsFromQueue();
             List<Task> tasks = new();
 
-            foreach (ProcessPersonalBestRequest request in items)
+            List<IGrouping<int, ProcessPersonalBestRequest>> groupedByUser = items.GroupBy(x => x.User).ToList();
+            foreach (IGrouping<int, ProcessPersonalBestRequest> userGroup in groupedByUser)
             {
-                Task task = Task.Run(async () => { await StartJob(request, stoppingToken); }, stoppingToken);
-                tasks.Add(task);
+                List<IGrouping<int, ProcessPersonalBestRequest>> groupedByLevel =
+                    userGroup.GroupBy(x => x.Level).ToList();
+
+                foreach (IGrouping<int, ProcessPersonalBestRequest> levelGroup in groupedByLevel)
+                {
+                    // We only need to process one request since we're checking the database for the best time
+                    ProcessPersonalBestRequest request = levelGroup.First();
+                    Task task = Task.Run(async () => { await StartJob(request, stoppingToken); }, stoppingToken);
+                    tasks.Add(task);
+                }
             }
 
             await Task.WhenAll(tasks);
