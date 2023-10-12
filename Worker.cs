@@ -22,32 +22,41 @@ internal class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            List<ProcessPersonalBestRequest> items = itemQueue.GetItemsFromQueue();
-            List<Task> tasks = new();
-
-            List<IGrouping<int, ProcessPersonalBestRequest>> groupedByUser = items.GroupBy(x => x.User).ToList();
-            foreach (IGrouping<int, ProcessPersonalBestRequest> userGroup in groupedByUser)
+            if (itemQueue.HasItems())
             {
-                List<IGrouping<int, ProcessPersonalBestRequest>> groupedByLevel =
-                    userGroup.GroupBy(x => x.Level).ToList();
-
-                foreach (IGrouping<int, ProcessPersonalBestRequest> levelGroup in groupedByLevel)
-                {
-                    // We only need to process one request since we're checking the database for the best time
-                    ProcessPersonalBestRequest request = levelGroup.First();
-                    Task task = Task.Run(async () => { await StartJob(request, stoppingToken); }, stoppingToken);
-                    tasks.Add(task);
-                }
+                await ProcessQueue(stoppingToken);
+            }
+            else
+            {
+                logger.LogInformation("No items in queue");
             }
 
-            await Task.WhenAll(tasks);
+            logger.LogInformation("Delaying for 1 second");
+            await Task.Delay(1000, stoppingToken);
+        }
+    }
 
-            if (!itemQueue.HasItems())
+    private async Task ProcessQueue(CancellationToken stoppingToken)
+    {
+        List<ProcessPersonalBestRequest> items = itemQueue.GetItemsFromQueue();
+        List<Task> tasks = new();
+
+        List<IGrouping<int, ProcessPersonalBestRequest>> groupedByUser = items.GroupBy(x => x.User).ToList();
+        foreach (IGrouping<int, ProcessPersonalBestRequest> userGroup in groupedByUser)
+        {
+            List<IGrouping<int, ProcessPersonalBestRequest>> groupedByLevel =
+                userGroup.GroupBy(x => x.Level).ToList();
+
+            foreach (IGrouping<int, ProcessPersonalBestRequest> levelGroup in groupedByLevel)
             {
-                logger.LogInformation("No more items in queue, waiting for new items");
-                await Task.Delay(1000, stoppingToken);
+                // We only need to process one request since we're checking the database for the best time
+                ProcessPersonalBestRequest request = levelGroup.First();
+                Task task = Task.Run(async () => { await StartJob(request, stoppingToken); }, stoppingToken);
+                tasks.Add(task);
             }
         }
+
+        await Task.WhenAll(tasks);
     }
 
     private async Task StartJob(ProcessPersonalBestRequest request, CancellationToken stoppingToken)
