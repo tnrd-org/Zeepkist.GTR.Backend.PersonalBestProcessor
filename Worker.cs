@@ -22,6 +22,8 @@ internal class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            logger.LogInformation("Starting iteration");
+
             if (itemQueue.HasItems())
             {
                 await ProcessQueue(stoppingToken);
