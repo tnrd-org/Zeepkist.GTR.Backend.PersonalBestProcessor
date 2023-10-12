@@ -61,6 +61,14 @@ public class ProcessPersonalBestJob
         }
 
         int savedChanges = await context.SaveChangesAsync();
-        return savedChanges == 1;
+
+        if (savedChanges != 1)
+        {
+            logger.LogWarning("No saved changes when processing personal best for user {User} on level {Level}",
+                request.User,
+                request.Level);
+        }
+
+        return true;
     }
 }
