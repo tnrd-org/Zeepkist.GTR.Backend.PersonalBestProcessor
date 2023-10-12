@@ -1,5 +1,4 @@
-﻿using FluentResults;
-using TNRD.Zeepkist.GTR.DTOs.Rabbit;
+﻿using TNRD.Zeepkist.GTR.DTOs.Rabbit;
 
 namespace TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor;
 
@@ -7,11 +6,19 @@ internal class ItemQueue
 {
     private readonly AutoResetEvent resetEvent = new(true);
     private readonly List<ProcessPersonalBestRequest> items = new();
-    private readonly Dictionary<int, List<ProcessPersonalBestRequest>> userToItems = new();
 
     public bool HasItems()
     {
-        return userToItems.Values.Any(x => x.Count > 0);
+        resetEvent.WaitOne();
+
+        try
+        {
+            return items.Count > 0;
+        }
+        finally
+        {
+            resetEvent.Reset();
+        }
     }
 
     public void AddToQueue(ProcessPersonalBestRequest item)
