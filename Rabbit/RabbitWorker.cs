@@ -10,23 +10,21 @@ namespace TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor.Rabbit;
 internal class RabbitWorker : IHostedService
 {
     private readonly RabbitOptions options;
-    private readonly ItemQueue mediaQueue;
-    private readonly IRabbitPublisher publisher;
+    private readonly ItemQueue itemQueue;
 
     private IConnection connection = null!;
     private IModel channel = null!;
 
-    public RabbitWorker(IOptions<RabbitOptions> options, ItemQueue mediaQueue, IRabbitPublisher publisher)
+    public RabbitWorker(IOptions<RabbitOptions> options, ItemQueue itemQueue)
     {
-        this.mediaQueue = mediaQueue;
-        this.publisher = publisher;
+        this.itemQueue = itemQueue;
         this.options = options.Value;
     }
 
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        ConnectionFactory factory = new ConnectionFactory()
+        ConnectionFactory factory = new()
         {
             HostName = options.Host,
             Port = options.Port,
@@ -37,21 +35,20 @@ internal class RabbitWorker : IHostedService
         connection = factory.CreateConnection();
         channel = connection.CreateModel();
 
-        channel.ExchangeDeclare(exchange: "records", type: ExchangeType.Fanout);
-        channel.ExchangeDeclare(exchange: "pb", type: ExchangeType.Fanout);
+        channel.ExchangeDeclare("records", ExchangeType.Fanout);
+        channel.ExchangeDeclare("pb", ExchangeType.Fanout);
 
         string? queueName = channel.QueueDeclare().QueueName;
-        channel.QueueBind(queue: queueName,
-            exchange: "pb",
-            routingKey: string.Empty);
+        channel.QueueBind(queueName,
+            "pb",
+            string.Empty);
 
-        EventingBasicConsumer consumer = new EventingBasicConsumer(channel);
+        EventingBasicConsumer consumer = new(channel);
         consumer.Received += OnReceived;
-        channel.BasicConsume(queue: queueName,
-            autoAck: true,
-            consumer: consumer);
+        channel.BasicConsume(queueName,
+            true,
+            consumer);
 
-        publisher.Initialize(channel);
         return Task.CompletedTask;
     }
 
@@ -60,7 +57,7 @@ internal class RabbitWorker : IHostedService
         byte[] body = e.Body.ToArray();
         string message = Encoding.UTF8.GetString(body);
         ProcessPersonalBestRequest request = JsonConvert.DeserializeObject<ProcessPersonalBestRequest>(message)!;
-        mediaQueue.AddToQueue(request);
+        itemQueue.AddToQueue(request);
     }
 
     /// <inheritdoc />

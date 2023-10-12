@@ -6,6 +6,7 @@ namespace TNRD.Zeepkist.GTR.Backend.PersonalBestProcessor;
 internal class ItemQueue
 {
     private readonly AutoResetEvent resetEvent = new(true);
+    private readonly List<ProcessPersonalBestRequest> items = new();
     private readonly Dictionary<int, List<ProcessPersonalBestRequest>> userToItems = new();
 
     public bool HasItems()
@@ -19,10 +20,7 @@ internal class ItemQueue
 
         try
         {
-            if (!userToItems.ContainsKey(item.User))
-                userToItems.Add(item.User, new List<ProcessPersonalBestRequest>());
-
-            userToItems[item.User].Add(item);
+            items.Add(item);
         }
         finally
         {
@@ -30,14 +28,14 @@ internal class ItemQueue
         }
     }
 
-    public Dictionary<int, List<ProcessPersonalBestRequest>> GetItemsFromQueue()
+    public List<ProcessPersonalBestRequest> GetItemsFromQueue()
     {
         resetEvent.WaitOne();
 
         try
         {
-            Dictionary<int, List<ProcessPersonalBestRequest>> copy = userToItems.ToDictionary(x => x.Key, y => y.Value);
-            userToItems.Clear();
+            List<ProcessPersonalBestRequest> copy = items.ToList();
+            items.Clear();
             return copy;
         }
         finally

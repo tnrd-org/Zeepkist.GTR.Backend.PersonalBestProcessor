@@ -20,10 +20,9 @@ internal class Program
             })
             .ConfigureServices((context, services) =>
             {
-                services.AddHostedService<QueueProcessor>();
+                services.AddHostedService<Worker>();
 
                 services.Configure<RabbitOptions>(context.Configuration.GetSection("Rabbit"));
-                services.AddSingleton<IRabbitPublisher, RabbitPublisher>();
                 services.AddHostedService<RabbitWorker>();
 
                 services.AddNpgsql<GTRContext>(context.Configuration["Database:ConnectionString"]);
