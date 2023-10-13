@@ -46,10 +46,10 @@ internal class Worker : BackgroundService
         List<IGrouping<int, ProcessPersonalBestRequest>> groupedByUser = items.GroupBy(x => x.User).ToList();
         foreach (IGrouping<int, ProcessPersonalBestRequest> userGroup in groupedByUser)
         {
-            List<IGrouping<int, ProcessPersonalBestRequest>> groupedByLevel =
+            List<IGrouping<string, ProcessPersonalBestRequest>> groupedByLevel =
                 userGroup.GroupBy(x => x.Level).ToList();
 
-            foreach (IGrouping<int, ProcessPersonalBestRequest> levelGroup in groupedByLevel)
+            foreach (IGrouping<string, ProcessPersonalBestRequest> levelGroup in groupedByLevel)
             {
                 // We only need to process one request since we're checking the database for the best time
                 ProcessPersonalBestRequest request = levelGroup.First();
