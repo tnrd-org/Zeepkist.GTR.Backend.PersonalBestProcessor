@@ -25,7 +25,7 @@ public class ProcessPersonalBestJob
     public async Task<bool> Execute()
     {
         List<Record> bestTimesForLevelAndUser = await context.Records.AsNoTracking()
-            .Where(x => x.Level == request.Level && x.User == request.User)
+            .Where(x => x.Level == request.Level && x.IsValid && x.User == request.User)
             .OrderBy(x => x.Time)
             .Take(1)
             .ToListAsync();
