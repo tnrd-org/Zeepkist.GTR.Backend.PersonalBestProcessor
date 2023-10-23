@@ -24,23 +24,18 @@ public class ProcessPersonalBestJob
 
     public async Task<bool> Execute()
     {
-        List<Record> bestTimesForLevelAndUser = await context.Records.AsNoTracking()
+        Record? bestTimeForLevelAndUser = await context.Records.AsNoTracking()
             .Where(x => x.Level == request.Level && x.IsValid && x.User == request.User)
             .OrderBy(x => x.Time)
-            .Take(1)
-            .ToListAsync();
+            .FirstOrDefaultAsync();
 
-        if (bestTimesForLevelAndUser.Count != 1)
+        if (bestTimeForLevelAndUser == null)
         {
-            logger.LogCritical("Found {Amount} instead of 1 record for level {Level} and user {User}",
-                bestTimesForLevelAndUser.Count,
-                request.Level,
-                request.User);
-
-            return false;
+            logger.LogWarning("No best time found for level {Level} and user {User}", request.Level, request.User);
+            return true;
         }
 
-        Record newPersonalBest = bestTimesForLevelAndUser.First();
+        Record newPersonalBest = bestTimeForLevelAndUser!;
 
         PersonalBest? existingPersonalBest =
             await context.PersonalBests.FirstOrDefaultAsync(x => x.Level == request.Level && x.User == request.User);
@@ -53,8 +48,8 @@ public class ProcessPersonalBestJob
         {
             context.PersonalBests.Add(new PersonalBest()
             {
-                Level = request.Level,
-                User = request.User,
+                Level = newPersonalBest.Level,
+                User = newPersonalBest.User,
                 Record = newPersonalBest.Id,
                 DateCreated = DateTime.UtcNow
             });
