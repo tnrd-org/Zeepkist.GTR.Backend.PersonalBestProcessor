@@ -14,7 +14,7 @@ internal class Program
                 configuration
                     .Enrich.FromLogContext()
                     .Enrich.WithProperty("Source", "PersonalBestProcessor")
-                    .MinimumLevel.Debug()
+                    .MinimumLevel.Information()
                     .WriteTo.Seq(context.Configuration["Seq:Url"], apiKey: context.Configuration["Seq:Key"])
                     .WriteTo.Console();
             })
